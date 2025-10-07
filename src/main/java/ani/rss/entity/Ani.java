@@ -269,6 +269,11 @@ public class Ani implements Serializable {
      */
     private List<String> customTags;
 
+    /**
+     * 播放列表
+     */
+    private List<PlayItem> playlist;
+
     public static Ani createAni() {
         Ani newAni = new Ani();
         Config config = ConfigUtil.CONFIG;

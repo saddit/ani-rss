@@ -2,6 +2,7 @@ package ani.rss.action;
 
 import ani.rss.annotation.Auth;
 import ani.rss.annotation.Path;
+import ani.rss.auth.enums.AuthType;
 import ani.rss.entity.Ani;
 import ani.rss.entity.Config;
 import ani.rss.entity.Item;
@@ -17,6 +18,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.text.StrFormatter;
 import cn.hutool.core.thread.ThreadUtil;
+import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.pinyin.PinyinUtil;
@@ -34,7 +36,12 @@ import java.util.function.ToLongFunction;
 /**
  * 订阅 增删改查
  */
-@Auth
+@Auth(type = {
+        AuthType.IP_WHITE_LIST,
+        AuthType.HEADER,
+        AuthType.FORM,
+        AuthType.API_KEY
+})
 @Slf4j
 @Path("/ani")
 public class AniAction implements BaseAction {
@@ -235,8 +242,15 @@ public class AniAction implements BaseAction {
         // 按拼音排序
         List<Ani> list = AniUtil.ANI_LIST;
 
+        HttpServerRequest request = ServerUtil.REQUEST.get();
+        String filterYear = request.getParam("year");
+        String filterMonth = request.getParam("month");
+        boolean playlist = BooleanUtil.toBoolean(request.getParam("playlist"));
+
         list
                 .parallelStream()
+                .filter(ani -> StrUtil.isEmpty(filterYear) || filterYear.equals(ani.getYear().toString()))
+                .filter(ani -> StrUtil.isEmpty(filterMonth) || filterMonth.equals(ani.getMonth().toString()))
                 .forEach(ani -> {
                     String title = ani.getTitle();
                     String pinyin = PinyinUtil.getPinyin(title, "");
@@ -254,6 +268,11 @@ public class AniAction implements BaseAction {
                     ani.setPinyin(pinyin)
                             .setPinyinInitials(pinyinInitials)
                             .setWeek(week);
+
+                    if (playlist) {
+                        File downloadPath = TorrentUtil.getDownloadPath(ani);
+                        ani.setPlaylist(PlaylistUtil.getPlayItem(downloadPath));
+                    }
                 });
 
         if (sortType == SortTypeEnum.SCORE) {
